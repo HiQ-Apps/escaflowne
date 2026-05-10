@@ -1,72 +1,172 @@
-# Escaflowne — Celeri-on-MGC
+# Escaflowne 🜚
 
-Test whether Celeri's EMA-crossover-with-ADX-trend edge transfers from
-equity index futures (MES/MNQ) to gold futures (MGC).
+A trend-following bot for micro gold futures, ported from [Celeri](#sibling-bots).
 
-## Phase 0a (current): Celeri's exact strategy params, run on MGC
+> _"A bot named after a giant mecha that runs on belief and Ancient Atlantean technology — naturally chosen to trade gold."_
 
-If this produces edge, the EMA+ADX trend-follow generalizes across instruments
-and we have a second uncorrelated bot for the cost of a config file. If it
-doesn't, we know Celeri's edge is more fragile than it looks before we sweep.
+---
+
+## What this is
+
+Escaflowne trades **MGC** (CME Micro Gold Futures) on IBKR using an EMA crossover with an ADX trend filter. It's a faithful port of Celeri's strategy, retuned for gold's price scale.
+
+The thesis being tested:
+> If Celeri's edge on equity index futures (MES/MNQ) is real and not specific to a single market, the same logic should produce edge on uncorrelated instruments. Gold is an uncorrelated instrument.
+
+The thesis being de-tested at every step:
+> If the edge IS specific to equity indices, we should find out before deploying capital, not after.
+
+---
+
+## Strategy in one paragraph
+
+Long-only EMA(8) over EMA(21) crossover on 5-minute bars. Take the entry only if ADX(14) ≥ 10 — i.e. there's a real trend, not just chop. Place an ATR-based stop (4× ATR) at the time of entry. Exit on the EMA cross-down. Risk-tier position sizing as the account grows. Flatten everything Friday at 16:59 ET because gold gaps over the weekend on news. No discretionary overrides, no tweaking mid-trade.
+
+---
+
+## Validation history
+
+The strategy passed every gate it was tested against:
+
+| Test | Verdict |
+|---|---|
+| Eyeball test on raw MGC data | Trades cluster sensibly in trends, avoid chop ✓ |
+| Regime-conditional test (annual buckets, fixed params) | 7 of 8 years profitable ✓ |
+| Walk-forward with 108-parameter sweep (10 walks, 24mo train / 6mo test) | 10 of 10 walks profitable, mean PF 2.11 ✓ |
+| Optimized full-history backtest | PF 2.22, max DD -1.22% ✓ |
+| Monte Carlo bootstrap (10K paths) | 100% profitable, 0% blowup probability ✓ |
+| Realistic position-sizing rerun | Holds up under risk-tiered sizing ✓ |
+
+Optimized parameters chosen by the walk-forward (ADX=10, EMA(8,21), ATR×4, MIN_STOP_POINTS=2.0).
+
+Backtest numbers are not promises. Paper trading is the next gate.
+
+---
 
 ## Project layout
 
 ```
 escaflowne/
-├── .env                     # DATABENTO_API_KEY (gitignored)
-├── backtest/
-│   ├── data_loader.py       # MGC pipeline: continuous contract, 1m + 5m, gold roll schedule
-│   ├── engine.py            # single-instrument MGC engine (cloned from Celeri)
-│   └── stats.py             # comprehensive statistics (verbatim from Celeri)
-├── strategy/
-│   ├── indicators.py        # EMA9/21, ADX14, ATR14, rolling 5000-bar window
-│   └── signals.py           # entry crossover + ADX filter (Celeri logic, MGC params)
+├── .env                       # DATABENTO_API_KEY (gitignored)
+├── README.md
+├── run.py                     # live trading entry point
+│
 ├── config/
-│   ├── base.py              # MGC contract specs ($0.10 tick, $10/pt)
-│   └── backtest.py          # Celeri's exact strategy params + MGC scale calibrations
+│   ├── base.py
+│   ├── backtest.py            # MGC-specific values
+│   └── live.py                # live config (mirrors backtest)
+│
+├── strategy/
+│   ├── indicators.py
+│   └── signals.py
+│
+├── backtest/
+│   ├── data_loader.py         # MGC pipeline: continuous contract, 1m + 5m, gold roll schedule
+│   ├── engine.py              # single-instrument MGC engine (cloned from Celeri)
+│   ├── walkforward.py         # regime-conditional + walk-forward optimization
+│   ├── montecarlo.py          # bootstrap path simulation
+│   └── stats.py               # Sharpe, Sortino, MFE/MAE, by-context breakdowns
+│
+├── live/
+│   ├── contracts.py           # schedule-driven contract month resolution
+│   ├── broker.py              # IBKR connection + MGC qualification
+│   ├── feed.py                # 5-min bar streaming with EMA cache fix
+│   ├── alerts.py              # Discord webhooks
+│   ├── state_publisher.py     # state.json for dashboards/monitors
+│   └── runner.py              # the brain: signals, orders, kill switches
+│
 ├── research/
-│   └── pull_mgc.py          # Databento parent-symbol pull
-├── data/
-│   ├── raw/                 # CSV.zst from Databento (gitignored)
-│   └── processed/           # parquet caches (gitignored)
-└── reports/                 # backtest output (gitignored)
+│   ├── pull_mgc.py            # Databento → CSV.zst → parquet
+│   ├── verify.py              # Sharpe sanity checks, walk DD inspection
+│   └── smoke_broker.py        # paper Gateway smoke test
+│
+└── data/
+    ├── raw/                   # Databento CSV.zst pulls
+    └── processed/             # continuous-contract parquets
 ```
 
-## Setup
+---
 
-```powershell
-# Create venv and install deps
-python -m venv .venv
-.venv\Scripts\activate
-python -m pip install databento python-dotenv pandas pandas-ta pyarrow numpy zstandard
+## Sibling bots
 
-# Copy .env.example to .env and fill in DATABENTO_API_KEY
-copy .env.example .env
-```
+Escaflowne is one of a planned trio of trend-following bots, each running independently on different instruments. They share strategy DNA but no code — each gets its own repo, its own state, its own bug-fix history.
 
-## Running Phase 0a
+| Bot | Instrument | Repo | Status |
+|---|---|---|---|
+| **Celeri** | MES (E-mini S&P) | (separate repo) | live, paper-stage, scaling |
+| **Celeri** | MNQ (E-mini Nasdaq) | (within Celeri) | will re-enable when account >$7K |
+| **Escaflowne** | MGC (Micro Gold) | (this repo) | building live code, paper soon |
 
-```powershell
-# 1. Pull 7 years of MGC 1-min bars (~$5-10 in Databento credits)
-python research/pull_mgc.py
+The intent is diversification across uncorrelated trends. When equities trend, Celeri eats. When gold trends, Escaflowne eats. When both trend, both eat. When neither trends, both sit on their hands and you pay commissions for the privilege.
 
-# 2. Process raw -> continuous contract -> 1m + 5m parquet
-python -m backtest.data_loader data\raw\mgc_1min_2019-01-01_2026-05-09.csv.zst
+---
 
-# 3. Precompute indicators (rolling 5000-bar window)
-python -c "from backtest.data_loader import precompute_indicators; precompute_indicators()"
+## Operational plan
 
-# 4. Run the backtest
+**Phase 1 — Paper trading (60-90 days)**
+- Run on IBKR paper Gateway (port 4002), separate from Celeri's live Gateway (port 4001)
+- Two Gateway instances on the same Windows VPS
+- Validate that real fills track backtest-modeled fills within ~30%
+- If not, debug. If yes, proceed.
+
+**Phase 2 — Live deployment (when account allows)**
+- Gated on Celeri growing the IBKR account to ~$10K liquid
+- MGC needs $5,074 overnight margin per contract at IBKR
+- Want at least $2,500 buffer for adverse moves (Monte Carlo p5 DD)
+- = ~$7,500 minimum to safely deploy 1 MGC contract live
+
+**Phase 3 — Add bots**
+- When account hits $25K+, re-enable MNQ (currently disabled in Celeri)
+- Three bots running simultaneously, each on its own instrument
+
+---
+
+## Operational commitments to myself
+
+- Don't go live before paper trading validates fill assumptions
+- Don't fund Escaflowne's account by raiding Celeri's working capital
+- Don't size up faster than the tier table allows, no matter how good a regime feels
+- Don't tweak the strategy once it's live — if a change is needed, paper trade the change first
+- Don't watch tick-by-tick once it's running — that's the whole point of automation
+
+---
+
+## Quick reference
+
+**Run a backtest:**
+```bash
 python -m backtest.engine
 ```
 
-## Decision matrix after Phase 0a
+**Walk-forward validation:**
+```bash
+python -m backtest.walkforward --phase both --workers 4
+```
 
-| Result | Interpretation | Next step |
-|---|---|---|
-| Sharpe > 1.0, PF > 1.3 | Edge transfers cleanly | Port to live, paper trade |
-| Sharpe 0.5-1.0, PF 1.0-1.3 | Borderline | Phase 0b: retune scale params (MIN_STOP, EMA_MIN_RISK) |
-| Sharpe < 0.5, PF < 1.0 | Edge doesn't transfer as-is | Phase 0c: targeted parameter sweep with walk-forward |
-| Negative expectancy | Edge is fragile/equity-specific | Try M6E or kill the idea |
+**Monte Carlo bootstrap:**
+```bash
+python -m backtest.montecarlo
+```
 
-The discipline: don't escalate past Phase 0a unless results genuinely justify it.
+**Smoke test the live code (requires paper Gateway on 4002):**
+```bash
+python -m research.smoke_broker
+```
+
+**Pull fresh data from Databento:**
+```bash
+python -m research.pull_mgc
+```
+
+---
+
+## Honest disclaimers
+
+- Backtests are backtests. Slippage, latency, and fill quality in live conditions will degrade real Sharpe vs. measured Sharpe by 30-50%.
+- The 2019-2026 sample window is gold-bull-heavy. The strategy hasn't been tested on a multi-year sideways-gold regime (something like 2013-2018). That's the next falsifiability test if a regime shift hits.
+- Position sizing scales with account growth, but slippage scales worse than linearly. Multi-contract MGC during news events is going to fill worse than backtested.
+- This is not investment advice. This is one person's project to test whether a working trend-follower transfers to gold. Don't deploy this with anyone else's money.
+
+---
+
+_"It's better to know than to wonder."_
