@@ -2,6 +2,8 @@
 
 A trend-following bot for micro gold futures, ported from [Celeri](#sibling-bots).
 
+<img width="6912" height="3456" alt="Escaflowne" src="https://github.com/user-attachments/assets/2727549a-180c-4e3b-8b00-3c5a6b72a2d4" />
+
 > _"A bot named after a giant mecha that runs on belief and Ancient Atlantean technology — naturally chosen to trade gold."_
 
 ---
