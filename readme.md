@@ -96,7 +96,7 @@ Escaflowne is one of a planned trio of trend-following bots, each running indepe
 | Bot | Instrument | Repo | Status |
 |---|---|---|---|
 | **Celeri** | MES (E-mini S&P) | (separate repo) | live, paper-stage, scaling |
-| **Celeri** | MNQ (E-mini Nasdaq) | (within Celeri) | will re-enable when account >$7K |
+| **Umbra** | MNQ (E-mini Nasdaq) | (coming soon) | in planning |
 | **Escaflowne** | MGC (Micro Gold) | (this repo) | building live code, paper soon |
 
 The intent is diversification across uncorrelated trends. When equities trend, Celeri eats. When gold trends, Escaflowne eats. When both trend, both eat. When neither trends, both sit on their hands and you pay commissions for the privilege.
