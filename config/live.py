@@ -51,7 +51,7 @@ MGC_CONTRACT_TIERS = [
 INSTRUMENT  = "MGC"
 POINT_VALUE = 10.0        # $10/point for MGC (vs $5 for MES, $2 for MNQ)
 TICK_SIZE   = 0.10        # $0.10 per tick for MGC
-
+EMA_MIN_RISK = 0.5
 # Session
 ENABLE_EOD_EXIT = "friday_only"   # flat-by-Fri-close, hold overnight Mon-Thu
 
