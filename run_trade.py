@@ -253,7 +253,14 @@ def _send_heartbeat(ib, runner_ref: list, paper: bool, timer_ref: list, start_ti
             hours  = secs // 3600
             mins   = (secs % 3600) // 60
             uptime = f"{hours}h {mins}m" if hours else f"{mins}m"
-            alert_heartbeat(paper, nlv=nlv, trades_today=trades, uptime_str=uptime)
+            alert_heartbeat(
+                paper,
+                nlv=nlv,
+                trades_today=trades,
+                uptime_str=uptime,
+                in_position=runner.state.in_position if runner else False,
+                killed=runner._killed if runner else False,
+            )
     except Exception as e:
         log.warning(f"Heartbeat failed: {e}")
 
