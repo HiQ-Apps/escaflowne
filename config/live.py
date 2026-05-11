@@ -63,5 +63,5 @@ SESSION_OPEN_BARS = 1
 PAPER       = True                # set to False when going live
 PORT_PAPER  = 4002
 PORT_LIVE   = 4001
-
+MAX_TRADES_SESSION = 10
 # Discord webhook is read from .env (DISCORD_WEBHOOK_URL, DISCORD_USER_ID)
