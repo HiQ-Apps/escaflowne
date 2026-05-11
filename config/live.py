@@ -57,6 +57,7 @@ ENABLE_EOD_EXIT = "friday_only"   # flat-by-Fri-close, hold overnight Mon-Thu
 
 # Trade cooldown
 COOLDOWN_BARS_AFTER_STOP = 0      # no cooldown by default
+SESSION_OPEN_BARS = 1
 
 # ── IBKR connection ──────────────────────────────────────────────────────────
 PAPER       = True                # set to False when going live
