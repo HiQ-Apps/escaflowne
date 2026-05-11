@@ -7,8 +7,8 @@ in config/backtest.py and re-run validation.
 """
 
 # ── Strategy params (optimized via walk-forward, 2026-05-09) ──────────────────
-ADX_TREND_THRESHOLD = 10
-ADX_MUST_RISE       = True
+ADX_TREND_THRESHOLD = 14
+ADX_MUST_RISE       = False
 
 EMA_FAST = 8
 EMA_SLOW = 21
